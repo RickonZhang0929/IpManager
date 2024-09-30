@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>设备管理系统</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      margin: 50px auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      width: 80%;
+      max-width: 600px;
+    }
+    h1, h2, h3 {
+      color: #0056b3;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #0056b3;
+      color: white;
+      padding: 10px 15px;
+      margin-right: 10px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #004494;
+    }
+    .message {
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #e0f8e9;
+      color: #2e7d32;
+    }
+    .error {
+      background-color: #fdecea;
+      color: #c62828;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #f4f4f9;
+    }
+    .hidden {
+      display: none;
+    }
+    .form-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      border-radius: 8px;
+      background-color: #e3f2fd; /* 统一使用浅蓝色背景 */
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 600px) {
+      .container {
+        width: 90%;
+      }
+      button {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+      .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .section-header button {
+        width: auto;
+        margin-top: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <h1>设备管理系统</h1>
+
+  <!-- 用户注册和登录界面 -->
+  <div id="auth-section">
+    <div class="form-section">
+      <h2>用户注册</h2>
+      <div id="register-message" class="message"></div>
+      <input type="text" id="register-username" placeholder="用户名">
+      <input type="password" id="register-password" placeholder="密码">
+      <button id="register-button">注册</button>
+    </div>
+
+    <div class="form-section">
+      <h2>用户登录</h2>
+      <div id="login-message" class="message"></div>
+      <input type="text" id="login-username" placeholder="用户名">
+      <input type="password" id="login-password" placeholder="密码">
+      <button id="login-button">登录</button>
+    </div>
+  </div>
+
+  <!-- 设备管理界面 -->
+  <div id="device-section" class="hidden">
+    <div class="section-header">
+      <h2>设备管理</h2>
+      <button id="logout-button">退出登录</button>
+    </div>
+    <!-- 绑定设备表单 -->
+    <div id="bind-device-form" class="form-section">
+      <h3>绑定新设备</h3>
+      <div id="bind-device-message" class="message"></div>
+      <input type="text" id="bind-device-id" placeholder="设备ID">
+      <input type="text" id="bind-device-ip" placeholder="IP地址">
+      <button id="bind-device-submit">绑定设备</button>
+    </div>
+
+    <div class="form-section">
+      <h3>已绑定设备列表</h3>
+      <div id="device-message" class="message"></div>
+      <table id="device-table">
+        <thead>
+          <tr>
+            <th>设备ID</th>
+            <th>IP地址</th>
+            <th>登录状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="device-table-body">
+          <!-- 动态生成设备列表 -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // 后端 API 地址
+  const API_BASE_URL = 'http://127.0.0.1:5000';
+
+  // 保存 Token
+  let token = '';
+
+  // DOM 元素
+  const authSection = document.getElementById('auth-section');
+  const deviceSection = document.getElementById('device-section');
+  const registerMessage = document.getElementById('register-message');
+  const loginMessage = document.getElementById('login-message');
+  const bindDeviceMessage = document.getElementById('bind-device-message');
+  const deviceMessage = document.getElementById('device-message');
+  const deviceTableBody = document.getElementById('device-table-body');
+
+  // 注册事件
+  document.getElementById('register-button').addEventListener('click', register);
+  document.getElementById('login-button').addEventListener('click', login);
+  document.getElementById('bind-device-submit').addEventListener('click', bindDevice);
+  document.getElementById('logout-button').addEventListener('click', logout);
+
+  // 用户注册函数
+  function register() {
+    const username = document.getElementById('register-username').value;
+    const password = document.getElementById('register-password').value;
+
+    fetch(API_BASE_URL + '/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username, password })
+    })
+    .then(handleResponse)
+    .then(data => {
+      registerMessage.textContent = data.message || '注册成功，请登录。';
+      registerMessage.classList.remove('error');
+      registerMessage.classList.add('success');
+    })
+    .catch(error => {
+      registerMessage.textContent = error.message;
+      registerMessage.classList.remove('success');
+      registerMessage.classList.add('error');
+    });
+  }
+
+  // 用户登录函数
+  function login() {
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    fetch(API_BASE_URL + '/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username, password })
+    })
+    .then(handleResponse)
+    .then(data => {
+      token = data.token;
+      authSection.classList.add('hidden');
+      deviceSection.classList.remove('hidden');
+      loginMessage.textContent = '';
+      fetchDevices();
+    })
+    .catch(error => {
+      loginMessage.textContent = error.message;
+      loginMessage.classList.remove('success');
+      loginMessage.classList.add('error');
+    });
+  }
+
+  // 退出登录函数
+  function logout() {
+    token = '';
+    authSection.classList.remove('hidden');
+    deviceSection.classList.add('hidden');
+  }
+
+  // 绑定设备函数
+  function bindDevice() {
+    const deviceId = document.getElementById('bind-device-id').value;
+    const ipAddress = document.getElementById('bind-device-ip').value;
+
+    fetch(API_BASE_URL + '/bind', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ device_id: deviceId, ip_address: ipAddress })
+    })
+    .then(handleResponse)
+    .then(data => {
+      bindDeviceMessage.textContent = data.message || '设备绑定成功。';
+      bindDeviceMessage.classList.remove('error');
+      bindDeviceMessage.classList.add('success');
+      // 清空输入框
+      document.getElementById('bind-device-id').value = '';
+      document.getElementById('bind-device-ip').value = '';
+      fetchDevices(); // 刷新设备列表
+    })
+    .catch(error => {
+      bindDeviceMessage.textContent = error.message;
+      bindDeviceMessage.classList.remove('success');
+      bindDeviceMessage.classList.add('error');
+    });
+  }
+
+  // 获取设备列表函数
+  function fetchDevices() {
+    fetch(API_BASE_URL + '/devices', {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    })
+    .then(handleResponse)
+    .then(data => {
+      renderDeviceTable(data.devices);
+    })
+    .catch(error => {
+      deviceMessage.textContent = error.message;
+      deviceMessage.classList.remove('success');
+      deviceMessage.classList.add('error');
+    });
+  }
+
+  // 渲染设备列表
+  function renderDeviceTable(devices) {
+    deviceTableBody.innerHTML = '';
+    devices.forEach(device => {
+      const tr = document.createElement('tr');
+
+      const tdId = document.createElement('td');
+      tdId.textContent = device.id;
+      tr.appendChild(tdId);
+
+      const tdIp = document.createElement('td');
+      tdIp.textContent = device.ip_address;
+      tr.appendChild(tdIp);
+
+      const tdStatus = document.createElement('td');
+      tdStatus.textContent = device.login_status ? '已登录' : '未登录';
+      tr.appendChild(tdStatus);
+
+      const tdActions = document.createElement('td');
+
+      const loginButton = document.createElement('button');
+      loginButton.textContent = '登录';
+      loginButton.addEventListener('click', () => loginDevice(device.id));
+      tdActions.appendChild(loginButton);
+
+      const logoutButton = document.createElement('button');
+      logoutButton.textContent = '登出';
+      logoutButton.addEventListener('click', () => logoutDevice(device.id));
+      tdActions.appendChild(logoutButton);
+
+      const unbindButton = document.createElement('button');
+      unbindButton.textContent = '解绑';
+      unbindButton.addEventListener('click', () => unbindDevice(device.id));
+      tdActions.appendChild(unbindButton);
+
+      tr.appendChild(tdActions);
+
+      deviceTableBody.appendChild(tr);
+    });
+  }
+
+  // 登录设备函数
+  function loginDevice(deviceId) {
+    const ipAddress = prompt('请输入设备的IP地址：');
+
+    fetch(API_BASE_URL + '/devices/' + deviceId + '/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ ip_address: ipAddress })
+    })
+    .then(handleResponse)
+    .then(data => {
+      alert(data.message || '设备登录成功。');
+      fetchDevices();
+    })
+    .catch(error => {
+      alert('设备登录失败：' + error.message);
+    });
+  }
+
+  // 登出设备函数
+  function logoutDevice(deviceId) {
+    fetch(API_BASE_URL + '/devices/' + deviceId + '/logout', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    })
+    .then(handleResponse)
+    .then(data => {
+      alert(data.message || '设备登出成功。');
+      fetchDevices();
+    })
+    .catch(error => {
+      alert('设备登出失败：' + error.message);
+    });
+  }
+
+  // 解绑设备函数
+  function unbindDevice(deviceId) {
+    fetch(API_BASE_URL + '/devices/' + deviceId + '/unbind', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    })
+    .then(handleResponse)
+    .then(data => {
+      alert(data.message || '设备解绑成功。');
+      fetchDevices();
+    })
+    .catch(error => {
+      alert('设备解绑失败：' + error.message);
+    });
+  }
+
+  // 处理响应
+  function handleResponse(response) {
+    return response.json().then(data => {
+      if (data.status === 'error') {
+        const error = new Error(data.message || '请求失败');
+        error.response = response;
+        throw error;
+      } else if (data.status === 'success') {
+        return data;
+      } else {
+        const error = new Error('未知的响应状态');
+        error.response = response;
+        throw error;
+      }
+    }).catch(err => {
+      const error = new Error('无法解析服务器响应');
+      error.response = response;
+      throw error;
+    });
+  }
+</script>
+
+</body>
+</html>

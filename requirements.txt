@@ -1,0 +1,4 @@
+requests
+pyjwt
+Werkzeug
+flask_cors
